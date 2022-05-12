@@ -1,225 +1,196 @@
 
 #include "set.h"
 
-const treenode* find( const treenode* n, const std::string& s )
+size_t case_insensitive::hash( const std::string& s )
+{
+
+   char a;
+   std::string cp = s;
+ 
+   for (size_t i = 0; i < cp.size(); i++)
+   {
+      a = tolower(cp[i]);
+      cp[i] = a;  
+   }
+    
+   size_t hashInd = 0;
+   size_t n = s.size();
+   size_t tempPow = 1;
+ 
+   for (size_t i = 0; i < n ; i++)
+   {
+      hashInd += cp[n-i-1] * tempPow;
+      tempPow *= 33;
+   }
+  
+  return hashInd;
+}
+
+bool case_insensitive::equal( const std::string& s1, const std::string& s2 )
+{
+   std::string cp1 = s1;
+   std::string cp2 = s2;
+   char a;  
+
+   for(size_t i = 0; i < cp1.size(); i++)
+   {
+      a = tolower(cp1[i]);
+      cp1[i] = a;
+   }
+  
+   for(size_t i = 0; i < cp2.size(); i++)
+   {
+      a = tolower(cp2[i]);
+      cp2[i] = a;
+   }
+  
+   if( cp1 == cp2 )
+      return true;
+   else
+      return false;
+}
+
+bool set::insert_norehash( const std::string& s )
 { 
-    while ( n != nullptr )
-    { 
-      if (s < n->value)
-        n = n->left;
-     
-      else if (s > n->value)
-        n = n->right;
-     
-      else 
-        return n;
+  size_t index = (case_insensitive::hash(s)) % buckets.size();
+  
+  for( auto it = buckets[index]. begin( ); it != buckets[index]. end( ); ++ it )
+  {
+    if (case_insensitive::equal(*it, s) ){
+      return false;
+    }
+  }    
+   
+  buckets[index].push_back(s);
+  return true;
+}
+
+void set::consider_rehash( )
+{
+
+  if( static_cast<size_t>(loadfactor()) > max_load_factor )
+  {
+  
+    size_t newSize = 8; 
+ 
+    while ( (set_size / newSize) > max_load_factor)
+    {    
+       newSize *= 2; 
+    } 
+   
+    std::vector<buckettype> newTable(newSize);
+ 
+    for (const buckettype& bucket: buckets)
+    {
+       for (const std::string& s: bucket)
+       {  
+          size_t index = (case_insensitive::hash(s)) % newSize;
+          newTable[ index ].push_back(s);
+       }
     }
 
-    return nullptr;
-}
-
-treenode** find( treenode** n, const std::string& s )
-{
-   treenode **search = n;
- 
-   while( *search != nullptr )
-   {
-     if (s < (*search)->value)
-        search =&((*search) -> left);
-    
-     else if (s > (*search) -> value)
-        search = &((*search) -> right);
-    
-     else if (s == (*search) ->value)
-        return n;
-   }
- 
-  return search;
-}
-
-size_t size( const treenode* n )
-{
-  if (n == nullptr)
-    return 0;
-  else
-    return(size(n->left) + 1 + size(n->right));
-    
-}
-
-size_t height( const treenode* n )
-{ 
-  if (n == nullptr) 
-     return 0;
-  
-  if(height(n->left) > height(n->right))
-     return 1 + height(n->left);
-  
-  else
-     return 1 + height(n->right);
-  
-}
-
-void deallocate( treenode* n )
-{ 
-  if(n == nullptr) 
-     return;
- 
-  deallocate(n -> left);
-  deallocate(n -> right);
- 
-  delete n;
-}
-
-treenode* makecopy( const treenode* n ) 
-{
-  if(n == nullptr)
-     return nullptr;
- 
-  treenode *copy = new treenode(n->value);
- 
-  copy->value = n->value; 
-  
-  copy->left = makecopy(n->left);
-  copy->right = makecopy(n->right);
- 
-  return copy;
-}
-
-
-void print( std::ostream& out, const treenode* n, unsigned int indent )
-{
-   for( unsigned int i = 0; i != indent; ++ i )
-      out << "|  "; 
-   if(n)
-   {
-      out << ( n -> value ) << "\n";
-      print( out, n -> left, indent + 1 );
-      print( out, n -> right, indent + 1 ); 
-   }
-   else
-      out << "#\n"; 
-}
-
-
-// Both the upperbound and the lowerbound are strict,
-// we use pointers, so that they can be absent. 
-
-void checkbetween( const treenode* n, 
-                   const std::string* lowerbound, 
-                   const std::string* upperbound ) 
-{
-   while(n) 
-   {
-      if( lowerbound && *lowerbound >= n -> value )
-      {
-         std::cout << "value " << ( n -> value );
-         std::cout << " is not above lower bound " << *lowerbound << "\n";
-         throw std::runtime_error( "tree not correct" ); 
-      }
-
-      if( upperbound && n -> value >= *upperbound )
-      {
-         std::cout << "value " << ( n -> value );
-         std::cout << "is not below upperbound " << *upperbound << "\n";
-         throw std::runtime_error( "tree not correct" );  
-      }
-
-      checkbetween( n -> left, lowerbound, &( n -> value ));
-      lowerbound = & ( n -> value );
-      n = n -> right;
-   }
+   buckets = newTable;
+  } 
 } 
 
-
-unsigned int log_base2( size_t s )
-{ 
-  if (s > 1)
-    return 1 + log_base2(s/2);
-  else
-    return 0;
+set::set( std::initializer_list< std::string > init,
+          double max_load_factor )
+   : max_load_factor( max_load_factor ),
+     buckets( std::vector< buckettype > (8)),
+     set_size(0)
+{
+   for ( auto i: init )
+      insert(i);
 }
 
 bool set::contains( const std::string& s ) const
 { 
-  return ::find(tr, s);
+   size_t index = case_insensitive::hash(s) % buckets.size();
+   bool contain = false;
+ 
+   for ( auto it = buckets[index].begin(); it != buckets[index].end(); ++it)
+   {
+     if ( case_insensitive::equal(*it, s))
+       contain = true;
+   }
+  
+   return contain;
 }
 
- 
 bool set::insert( const std::string& s )
-{ 
+{
 
-   treenode** f = ::find(&tr, s);
- 
-   if(*f != nullptr)
+  bool inserted = insert_norehash(s);
+
+  if ( inserted )
+  {
+     consider_rehash();
+     set_size++;
+  }
+   
+  return inserted;
+}
+
+bool set::remove( const std::string& s ) 
+{ 
+   size_t index = case_insensitive::hash(s) % buckets.size();
+   auto& lst = buckets[index];
+
+   for ( auto it = lst.begin(); it != lst.end(); ++it)
    {
-      return false;
+     if (case_insensitive::equal( *it, s ) == true)
+     {
+       lst.erase(it);
+       set_size--;
+       return true;
+     }
    }
-   else
-   {
-     treenode *newNode = new treenode(s);
-     *f = newNode;
-     return true;
-   }
+
+   return false;
 }
 
 size_t set::size( ) const
 { 
-   return ::size(tr);
-}
-
-size_t set::height( ) const
-{
-   return ::height(tr); 
+  return set_size; 
 }
 
 bool set::empty( ) const
-{
-   if (tr == nullptr) 
-     return true;
-   else
-     return false;
-}
-
-set:: ~set( )
 { 
-  ::deallocate(tr);
-  tr = nullptr;
+  return (set_size == 0);
 }
 
-void set::clear( )
+void set::clear( ) 
 {
- ::size(nullptr); 
- ::deallocate(tr);
- tr = nullptr;
+   for ( size_t i = 0; i < buckets.size(); i++)
+   {
+     auto &lst = buckets[i];
+     lst.clear();
+   }
+   set_size = 0;
 }
 
-set::set( const set& other ): tr(::makecopy(other.tr))
-{ }
-
-
-set& set::operator = ( const set& other )
+void set::print( std::ostream& out ) const
 { 
-  
-  if (&other == this)
-     return *this;
-  
-  ::deallocate(tr);
-  tr = ::makecopy(other.tr);
-   
+   for (size_t i = 0; i < buckets.size(); i++)
+   {
+     std::list<std::string> bucket = buckets[i];
+
+     out << "bucket[" << i << "] = {";
  
-  return *this;
+         bool first = true;
+ 
+         for ( std::string val : bucket) 
+         {
+            if(first)
+            {
+              out << val;
+              first = false;
+            } else {
+              out << ", " << val;
+            }
+         }
+      out << "}" << std::endl;  
+   } 
 }
 
-
-
-void set::checksorted( ) const
-{
-   ::checkbetween( tr, nullptr, nullptr );
-}
-
-
-void set::print( std::ostream& out, unsigned int indent ) const
-{
-   ::print( out, tr, indent );
-}
 
