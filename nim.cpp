@@ -89,8 +89,7 @@ int main( int arg, char* argv[] )
    }
 #endif
 
-//  std::cout << s  <<  "\n";
-//  std::cout << c << "\n";
+
    return 0;
 }
 
